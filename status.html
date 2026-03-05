@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roger 🦞 — Services Status</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+            background-image: radial-gradient(ellipse at top, #1a1a2e 0%, #0a0a0f 70%);
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+        }
+        .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0052ff, #00ff88);
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        h1 { color: #fff; font-size: 24px; margin-bottom: 8px; }
+        .subtitle { color: #666; font-size: 14px; }
+        
+        .status-grid {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .status-card {
+            background: #12121a;
+            border: 1px solid #1a1a2e;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .service-info h3 {
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .service-info p {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .online {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+        
+        .offline {
+            background: rgba(255, 45, 99, 0.1);
+            color: #ff2d63;
+            border: 1px solid rgba(255, 45, 99, 0.2);
+        }
+        
+        .checking {
+            background: rgba(255, 230, 0, 0.1);
+            color: #ffe600;
+            border: 1px solid rgba(255, 230, 0, 0.2);
+        }
+        
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #444;
+            font-size: 12px;
+        }
+        .footer a { color: #666; }
+        
+        .last-updated {
+            color: #444;
+            font-size: 11px;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="avatar">🦞</div>
+            <h1>Roger Services</h1>
+            <p class="subtitle">Live status of all running services</p>
+        </div>
+        
+        <div class="status-grid" id="services">
+            <div class="status-card">
+                <div class="service-info">
+                    <h3>Loading...</h3>
+                </div>
+            </div>
+        </div>
+        
+        <p class="last-updated" id="updated"></p>
+        
+        <div class="footer">
+            Built by Roger 🦞 | <a href="https://github.com/Roger-Base">GitHub</a>
+        </div>
+    </div>
+
+    <script>
+        const services = [
+            { name: 'Gas Predictor', url: 'https://base-gas-predictor.onrender.com/api/gas', local: 'http://localhost:3003/api/gas', description: 'Base gas price predictions' },
+            { name: 'x402 Demo', url: 'https://x402-agent-starter.onrender.com/health', local: 'http://localhost:3000/health', description: 'Micropayments demo' },
+            { name: 'Agent Status', url: null, local: 'http://localhost:3001/status', description: 'Roger agent heartbeat' },
+            { name: 'ACP Seller', url: null, local: 'http://localhost:3002/health', description: 'Agent Commerce Protocol' }
+        ];
+        
+        async function checkService(service) {
+            const url = service.local;
+            try {
+                const response = await fetch(url, { 
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                if (response.ok) {
+                    return { status: 'online', data: await response.json() };
+                }
+                return { status: 'offline' };
+            } catch (e) {
+                // Try external URL if local fails
+                if (service.url) {
+                    try {
+                        const extResponse = await fetch(service.url, { 
+                            method: 'GET',
+                            mode: 'cors',
+                            cache: 'no-cache'
+                        });
+                        if (extResponse.ok) {
+                            return { status: 'online', data: await extResponse.json() };
+                        }
+                    } catch (extError) {}
+                }
+                return { status: 'offline', error: e.message };
+            }
+        }
+        
+        async function updateStatus() {
+            const grid = document.getElementById('services');
+            grid.innerHTML = '';
+            
+            let onlineCount = 0;
+            
+            for (const service of services) {
+                const result = await checkService(service);
+                if (result.status === 'online') onlineCount++;
+                
+                const card = document.createElement('div');
+                card.className = 'status-card';
+                
+                const badgeClass = result.status === 'online' ? 'online' : 'offline';
+                const badgeText = result.status === 'online' ? '● Online' : '○ Offline';
+                
+                let extraInfo = '';
+                if (result.data && result.data.service) {
+                    extraInfo = ` • ${result.data.service}`;
+                }
+                if (result.data && result.data.agent) {
+                    extraInfo = ` • ${result.data.agent}`;
+                }
+                
+                card.innerHTML = `
+                    <div class="service-info">
+                        <h3>${service.name}</h3>
+                        <p>${service.description}</p>
+                    </div>
+                    <span class="status-badge ${badgeClass}">${badgeText}${extraInfo}</span>
+                `;
+                
+                grid.appendChild(card);
+            }
+            
+            document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleString();
+        }
+        
+        updateStatus();
+        setInterval(updateStatus, 30000);
+    </script>
+</body>
+</html>
